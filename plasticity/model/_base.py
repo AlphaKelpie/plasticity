@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from tqdm import tqdm
+from tqdm import tqdm, trange
 from collections import deque
 
 from plasticity.utils import _check_activation
@@ -246,7 +246,7 @@ class BasePlasticity (BaseEstimator, TransformerMixin):
     indices = np.arange(0, num_samples).astype('int64')
     num_batches = num_samples // self.batch_size
 
-    for epoch in range(self.num_epochs):
+    for epoch in trange(self.num_epochs, disable=(self.verbose), leave=False):
 
       if self.verbose:
         print('Epoch {:d}/{:d}'.format(epoch + 1, self.num_epochs))
