@@ -107,16 +107,25 @@ class BCM (BasePlasticity):
       batch_size : int = 100, activation : str = 'Logistic',
       optimizer : 'Optimizer' = SGD(lr=2e-2),
       weights_init : 'BaseWeights' = Normal(mu=0., std=1.),
-      interaction_strength : float = 0.,
+      interaction_strength = 0.,
       precision : float = 1e-30,
       epochs_for_convergence : int = None,
       convergence_atol : float = 0.01,
       decay : float = 0.,
       memory_factor: float = 0.5,
-      random_state : int = None, verbose : bool = True):
+      random_state : int = None, verbose : bool = True,
+      weights_interaction = None):
 
-    self._interaction_matrix = self._weights_interaction(interaction_strength, outputs)
     self.interaction_strength = interaction_strength
+
+    if weights_interaction is None:
+      if isinstance(self.interaction_strength, float):
+        self._interaction_matrix = self._weights_interaction(strength=self.interaction_strength, outputs=outputs)
+      else:
+        self._interaction_matrix = self._greg_weights_interaction(strength=self.interaction_strength, outputs=outputs)
+    else:
+      self._interaction_matrix = weights_interaction(strength=self.interaction_strength, outputs=outputs)
+    
     self.memory_factor = memory_factor
 
     super (BCM, self).__init__(outputs=outputs, num_epochs=num_epochs,
@@ -128,6 +137,24 @@ class BCM (BasePlasticity):
                                convergence_atol=convergence_atol,
                                decay=decay,
                                random_state=random_state, verbose=verbose)
+
+
+  def _greg_weights_interaction (self, strength : list, outputs : np.ndarray) -> np.ndarray:
+    L = np.full(fill_value=-strength[0], shape=(outputs, outputs))
+    np.fill_diagonal(L, 0)
+    L[np.eye(*L.shape, dtype=bool)] = 0
+    # fill inverse diagonal
+    np.fill_diagonal(np.fliplr(L), -strength[1])
+    mean_point = outputs // 2
+    L[mean_point, mean_point] = 0
+    # change mean_point row and column with -strength[1]
+    L[mean_point] = -strength[1]
+    L[:, mean_point] = -strength[1]
+    L[mean_point, mean_point] = np.sum(L[0]) - np.sum(L[mean_point])
+    # sum 1 to the diagonal
+    L[np.eye(*L.shape, dtype=bool)] += 1
+    # print(L)
+    return np.linalg.inv(L)
 
   def _weights_interaction (self, strength : float, outputs : np.ndarray) -> np.ndarray:
     '''
