@@ -289,7 +289,7 @@ def redirect_stdout (verbose : bool):
                                       # CLOEXEC may be different
 
 
-def view_weights (weights : np.ndarray, dims : tuple) -> None:
+def view_weights (weights : np.ndarray, dims : tuple, cmap : str = 'bwr', figsize : tuple = (10, 10), path : str = None) -> None:
   '''
   Plot the weight matrix as full image
 
@@ -300,6 +300,15 @@ def view_weights (weights : np.ndarray, dims : tuple) -> None:
 
     dims : tuple
       Dimension of each single image/weight connections
+
+    cmap : str (default = 'bwr')
+      Colormap to use
+    
+    figsize : tuple
+      Dimension of the final figure
+    
+    save : str
+      If None (default) shows the image, if exist saves it without colorbar
 
   Returns
   -------
@@ -318,19 +327,27 @@ def view_weights (weights : np.ndarray, dims : tuple) -> None:
 
   num_images = int(np.sqrt(weights.shape[0]))
 
-  # extract the maximum number of weights for a square image
-  selected_weights = weights[:num_images**2]
+  
 
   # combine the series of images into a full matrix
-  image = np.hstack(np.hstack(selected_weights.reshape(num_images, num_images, *dims)))
+  if num_images != 64:
+    # extract the maximum number of weights for a square image
+    selected_weights = weights[:num_images**2]
+    image = np.hstack(np.hstack(selected_weights.reshape(num_images, num_images, *dims)))
+  else:
+    selected_weights = weights
+    image = selected_weights.reshape(*dims)
 
   # colormap range
   nc = np.max(np.abs(selected_weights))
 
   # plot the results
-  fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(10, 10))
+  fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize)
   ax.axis('off')
-  im = ax.imshow(image, cmap='bwr', vmin=-nc, vmax=nc)
-  fig.colorbar(im, ticks=[np.min(selected_weights), 0, np.max(selected_weights)])
-
-  plt.show()
+  im = ax.imshow(image, cmap=cmap, vmin=-nc, vmax=nc)
+  if path:
+    fig.savefig(path, transparent=True, bbox_inches='tight')
+    plt.close(fig)
+  else:
+    fig.colorbar(im, ticks=[np.min(selected_weights), 0, np.max(selected_weights)])
+    plt.show()
